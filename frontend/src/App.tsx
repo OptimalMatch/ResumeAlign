@@ -21,8 +21,10 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material';
-import { CloudUpload, Send, CheckCircle, Info, ExpandMore, Work } from '@mui/icons-material';
+import { CloudUpload, Send, CheckCircle, Info, ExpandMore, Work, Link, Description } from '@mui/icons-material';
 import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || '';
@@ -59,7 +61,9 @@ function TabPanel(props: TabPanelProps) {
 }
 
 function App() {
+  const [jobInputType, setJobInputType] = useState<'url' | 'text'>('text');
   const [jobUrl, setJobUrl] = useState('');
+  const [jobText, setJobText] = useState('');
   const [resumeText, setResumeText] = useState('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -99,8 +103,14 @@ function App() {
 
     try {
       const formData = new FormData();
-      formData.append('job_url', jobUrl);
-      
+
+      // Add job posting information based on input type
+      if (jobInputType === 'url') {
+        formData.append('job_url', jobUrl);
+      } else {
+        formData.append('job_text', jobText);
+      }
+
       if (resumeFile) {
         formData.append('resume_file', resumeFile);
       } else if (resumeText) {
@@ -153,15 +163,59 @@ function App() {
           <Paper elevation={3} sx={{ p: 4, mt: 3 }}>
             <form onSubmit={handleSubmit}>
               <Stack spacing={3}>
-                <TextField
-                  fullWidth
-                  label="Job Posting URL"
-                  variant="outlined"
-                  value={jobUrl}
-                  onChange={(e) => setJobUrl(e.target.value)}
-                  required
-                  placeholder="https://example.com/job-posting"
-                />
+                <Box>
+                  <Typography variant="h6" gutterBottom>
+                    Job Posting Input
+                  </Typography>
+                  <ToggleButtonGroup
+                    value={jobInputType}
+                    exclusive
+                    onChange={(e, newType) => {
+                      if (newType !== null) {
+                        setJobInputType(newType);
+                        setJobUrl('');
+                        setJobText('');
+                      }
+                    }}
+                    fullWidth
+                    sx={{ mb: 2 }}
+                  >
+                    <ToggleButton value="text">
+                      <Description sx={{ mr: 1 }} />
+                      Paste Job Text
+                    </ToggleButton>
+                    <ToggleButton value="url">
+                      <Link sx={{ mr: 1 }} />
+                      Job URL
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+
+                  {jobInputType === 'url' ? (
+                    <TextField
+                      fullWidth
+                      label="Job Posting URL"
+                      variant="outlined"
+                      value={jobUrl}
+                      onChange={(e) => setJobUrl(e.target.value)}
+                      required
+                      placeholder="https://example.com/job-posting"
+                      helperText="Note: Some job sites may block automated access"
+                    />
+                  ) : (
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={8}
+                      label="Job Posting Content"
+                      variant="outlined"
+                      value={jobText}
+                      onChange={(e) => setJobText(e.target.value)}
+                      required
+                      placeholder="Paste the full job posting content here..."
+                      helperText="Recommended: Copy/paste the entire job description to avoid bot blocking"
+                    />
+                  )}
+                </Box>
 
                 <Box>
                   <Typography variant="h6" gutterBottom>
@@ -213,7 +267,7 @@ function App() {
                   variant="contained"
                   size="large"
                   fullWidth
-                  disabled={loading || !jobUrl || (!resumeFile && !resumeText)}
+                  disabled={loading || (jobInputType === 'url' ? !jobUrl : !jobText) || (!resumeFile && !resumeText)}
                   startIcon={loading ? <CircularProgress size={20} /> : <Send />}
                 >
                   {loading ? 'Optimizing...' : 'Optimize Resume'}
@@ -268,7 +322,7 @@ function App() {
                       <AccordionSummary expandIcon={<ExpandMore />}>
                         <Typography variant="h6">
                           <Work sx={{ mr: 1, verticalAlign: 'middle' }} />
-                          Scraped Job Posting
+                          Job Posting Content
                         </Typography>
                       </AccordionSummary>
                       <AccordionDetails>

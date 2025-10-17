@@ -366,25 +366,40 @@ async def root():
 
 @app.post("/optimize", response_model=ResumeResponse)
 async def optimize_resume(
-    job_url: str = Form(...),
+    job_url: Optional[str] = Form(None),
+    job_text: Optional[str] = Form(None),
     resume_file: Optional[UploadFile] = File(None),
     resume_text: Optional[str] = Form(None)
 ):
     """
     Optimize a resume based on a job posting.
-    
+
+    Provide either job_url (to scrape) or job_text (pasted content).
     Either upload a PDF resume file or provide resume text directly.
     """
-    
+
     # Validate input
     if not resume_file and not resume_text:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="Either resume_file or resume_text must be provided"
         )
-    
-    # Scrape job posting
-    job_posting_cleansed, job_posting_raw = await scrape_job_posting(job_url)
+
+    if not job_url and not job_text:
+        raise HTTPException(
+            status_code=400,
+            detail="Either job_url or job_text must be provided"
+        )
+
+    # Get job posting content
+    if job_text:
+        # Use the pasted job text directly (no need to scrape)
+        job_posting_cleansed = job_text
+        job_posting_raw = job_text
+        print(f"Using pasted job text: {len(job_text)} characters")
+    else:
+        # Scrape job posting from URL
+        job_posting_cleansed, job_posting_raw = await scrape_job_posting(job_url)
     print(f"Scraped job posting - Raw: {len(job_posting_raw)} chars, Cleansed: {len(job_posting_cleansed)} chars")
     print(f"First 200 chars of cleansed: {job_posting_cleansed[:200]}")
     
@@ -404,7 +419,7 @@ async def optimize_resume(
     # Save to database
     optimization_doc = ResumeOptimization(
         user_email="anonymous@example.com",  # TODO: Add user authentication
-        job_url=job_url,
+        job_url=job_url if job_url else "Pasted job content",
         job_posting_content=job_posting_cleansed,
         job_posting_raw=job_posting_raw,
         original_resume=resume_content,
